@@ -3,27 +3,27 @@ import dash_core_components as dcc
 import dash_html_components as html
 import pandas as pd
 import plotly.graph_objs as go
-from iapws import IAPWS97 as steam_prop
+# from iapws import IAPWS97 as steam_prop
 
 #Define critical pressure ratio
 alpha = 0.55
 
 #Define a function that calculates the density for a given pressure and temperature
-def calc_rho(p, t):
+# def calc_rho(p, t):
     
-    #convert psia to MPA
-    pressure = p*0.00689476
+#     #convert psia to MPA
+#     pressure = p*0.00689476
 
-    #convert farenheit to Kelvin
-    temp = (t - 32)*5/9 + 273.15
+#     #convert farenheit to Kelvin
+#     temp = (t - 32)*5/9 + 273.15
 
-    #get the density 
-    rho = steam_prop(P=pressure, T=temp).rho
+#     #get the density 
+#     rho = steam_prop(P=pressure, T=temp).rho
     
-    #convert density from kg/M^3 to lb/ft^3
-    rho = rho*0.062428
+#     #convert density from kg/M^3 to lb/ft^3
+#     rho = rho*0.062428
     
-    return rho
+#     return rho
 
 def generate_table(dataframe, max_rows=30):
     return html.Table(
