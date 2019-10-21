@@ -3,27 +3,9 @@ import dash_core_components as dcc
 import dash_html_components as html
 import pandas as pd
 import plotly.graph_objs as go
-# from iapws import IAPWS97 as steam_prop
 
 #Define critical pressure ratio
 alpha = 0.55
-
-#Define a function that calculates the density for a given pressure and temperature
-# def calc_rho(p, t):
-    
-#     #convert psia to MPA
-#     pressure = p*0.00689476
-
-#     #convert farenheit to Kelvin
-#     temp = (t - 32)*5/9 + 273.15
-
-#     #get the density 
-#     rho = steam_prop(P=pressure, T=temp).rho
-    
-#     #convert density from kg/M^3 to lb/ft^3
-#     rho = rho*0.062428
-    
-#     return rho
 
 def generate_table(dataframe, max_rows=30):
     return html.Table(
@@ -37,33 +19,6 @@ def generate_table(dataframe, max_rows=30):
     )
 
 design_df = pd.read_csv('Resources/design_data.csv')
-
-# Calculate the Inlet Density and Equivalent J = F/sqrt(rho*dp) based on input data
-# Create empty lists to hold calculations
-# rho = []
-# factor = []
-
-# Convert Dataframe to lists
-# f = design_df["Steam Flow (Design)"].to_list()
-# tp = design_df["Throttle Pressure (Design)"].to_list()
-# fsp = design_df["First Stage Pressure (Design)"].to_list()
-# t = design_df["Main Steam Temperature (Design)"].to_list()
-
-# For each data point, calculate inlet density and equivalent J
-# for i in range(len(design_df)):
-#     rho.append(calc_rho(tp[i], t[i]))
-    
-#     # If pressure drop is choked use alpha instead of total pressure drop
-#     if (tp[i] - fsp[i]) > alpha:
-#         dp = alpha*tp[i]
-#     else:
-#         dp = tp[i] - fsp[i]
-        
-#     factor.append(f[i]/(rho[i]*dp)**0.5)
-
-# Add columns for inlet density and Equivalent J
-# design_df["Inlet Density (Design)"] = rho
-# design_df["Equivalent J (Design)"] = factor
 
 # Plot equivalent J vs Governor Demand
 x_axis = design_df.loc[ design_df["Governor Demand (Design)"] > 0, "Governor Demand (Design)"].to_list()
