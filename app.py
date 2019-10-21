@@ -3,6 +3,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 import pandas as pd
 import plotly.graph_objs as go
+import flask
 
 #Define critical pressure ratio
 alpha = 0.55
@@ -36,9 +37,9 @@ Enjoy!
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
-
-
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+server = flask.Flask(__name__)
+#server.secret_key = os.environ.get('secret_key', str(randint(0, 1000000)))
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets, server=server)
 
 colors = {
     'background': "#111111",
