@@ -11,29 +11,17 @@ import pandas as pd
 import plotly.graph_objs as go
 import flask
 
-#Define critical pressure ratio
-alpha = 0.55
-
-def generate_table(dataframe, max_rows=5):
-    return html.Table(
-        # Header
-        [html.Tr([html.Th(col) for col in dataframe.columns])] +
-
-        # Body
-        [html.Tr([
-            html.Td(dataframe.iloc[i][col]) for col in dataframe.columns
-        ]) for i in range(min(len(dataframe), max_rows))]
-    )
-
-design_df = pd.read_csv('Resources/design_data.csv')
+#upload_df = pd.read_csv('Resources/design_data.csv')
 
 # Plot equivalent J vs Governor Demand
-x_axis = design_df.loc[ design_df["Governor Demand (Design)"] > 0, "Governor Demand (Design)"].to_list()
-y_axis = design_df.loc[ design_df["Governor Demand (Design)"] > 0, "Generator MWG (Design)"].to_list()
+#x_axis = upload_df.iloc[:, 0]
+#y_axis = upload_df.iloc[:, 1]
 
 # Insert point (0,0)
-x_axis.insert(0,0)
-y_axis.insert(0,0)
+#x_axis.insert(0,0)
+#y_axis.insert(0,0)
+x_axis=[]
+y_axis=[]
 
 about_text1 = 'Use this interactive sandbox to identify outliers in your data, remove them, and improve your insights.'
 about_text3 = 'Try it!'
@@ -93,7 +81,7 @@ app.layout = html.Div(children=[
         id='upload-data',
         children=html.Div([
             'Try It! Drag and Drop or ',
-            html.A('Select Files')
+            html.A('Select a File')
         ]),
         style={
             'width': '100%',
@@ -106,8 +94,8 @@ app.layout = html.Div(children=[
             'margin': '10px'
         },
         className="lg-col-12",
-        # Allow multiple files to be uploaded
-        multiple=True
+        # Do not allow multiple files to be uploaded
+        multiple=False
     ),
 
     
@@ -116,7 +104,7 @@ app.layout = html.Div(children=[
 
     # ------------/ Row 4 /--------------
     dcc.Graph(
-        id='gen-mwg-vs-gov-dmd',
+        id='outlier-plot',
         figure={
             'data': [
                 go.Scatter(
@@ -187,12 +175,16 @@ def parse_contents(contents, filename, date):
         elif 'xls' in filename:
             # Assume that the user uploaded an excel file
             df = pd.read_excel(io.BytesIO(decoded))
+
     except Exception as e:
         print(e)
         return html.Div([
             'There was an error processing this file.'
         ])
+    
+    return df
 
+def parse_contents_table(contents, filename, date, df):
     return html.Div([
         html.H5(filename),
         html.H6(datetime.datetime.fromtimestamp(date)),
@@ -212,18 +204,68 @@ def parse_contents(contents, filename, date):
         })
     ])
 
+def update_graph(df):
+    
+    x_axis = df.iloc[:, 0]
+    y_axis = df.iloc[:, 1]
+
+    return {
+        'data': [
+            go.Scatter(
+                x=x_axis,
+                y=y_axis,
+                #text='myText',
+                mode='markers',
+                opacity=0.5,
+                marker={
+                    'size': 10,
+                    'line': {'width': 0.5, 'color': 'white'}
+                },
+            )
+        ],
+        'layout': go.Layout(
+            xaxis={'title': df.columns[0]},
+            yaxis={'title': df.columns[1]},
+            margin={'l': 60, 'b': 40, 't': 10, 'r': 10},
+            legend={'x': 0, 'y': 1},
+            hovermode='closest'
+            )
+    }
+
 
 #---------/ Callbacks /------------------
-@app.callback(Output('output-data-upload', 'children'),
+@app.callback([Output('output-data-upload', 'children'),
+                Output('outlier-plot', 'figure')],
               [Input('upload-data', 'contents')],
               [State('upload-data', 'filename'),
                State('upload-data', 'last_modified')])
-def update_output(list_of_contents, list_of_names, list_of_dates):
-    if list_of_contents is not None:
-        children = [
-            parse_contents(c, n, d) for c, n, d in
-            zip(list_of_contents, list_of_names, list_of_dates)]
-        return children
+def update_output(contents, filename, last_modified):
+    
+    global upload_df
+    # if there are contents in the upload
+    if contents is not None:
+
+        # Use the contents to create a dataframe
+        upload_df = parse_contents(contents, filename, last_modified)
+
+        # Use dataframe to create table
+        children = [parse_contents_table(contents, filename, last_modified, upload_df)]
+
+        # use dataframe to create a figure
+        graph = update_graph(upload_df)
+
+        return (children, graph)
+    
+    # On intial page load, or failure, use example data
+    else:
+        upload_df = pd.read_csv('Resources/design_data.csv')
+        graph = update_graph(upload_df)
+        children =[]
+    
+    return (children, graph)
+
+    
+
 
 if __name__=='__main__':
     app.run_server(debug=True)
