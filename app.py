@@ -10,18 +10,77 @@ import dash_table
 import pandas as pd
 import plotly.graph_objs as go
 import flask
+from scipy import optimize
+import numpy as np
 
-#upload_df = pd.read_csv('Resources/design_data.csv')
+# The number of points to evauate on in the best fit function
+fit_resolution = 25
 
-# Plot equivalent J vs Governor Demand
-#x_axis = upload_df.iloc[:, 0]
-#y_axis = upload_df.iloc[:, 1]
+# This function accepts x and coeff for a square root function, returns the y value
+def linear(x, m, b):
+    return m*x + b
 
-# Insert point (0,0)
-#x_axis.insert(0,0)
-#y_axis.insert(0,0)
-x_axis=[]
-y_axis=[]
+# This function accepts x and coeff for a square root function, returns the y value
+def root(x, a, b):
+    return a*(x**0.5) + b
+
+# This function accepts x and coeff for a cubic function, returns the y value
+def cubic(x, a, b, c, d):
+    return a*(x**3) + b*(x**2) + c*(x) + d
+
+# This function accepts x and coeff for a quadratic function, returns the y value
+def quadratic(x, a, b, c):
+    return a*(x**2) + b*(x) + c
+
+# This function accepts x and coeff for a fourth power function, returns the y value
+def fourth(x, a, b, c, d, e):
+    return a*(x**4) + b*(x**3) + c*(x**2) + d*(x) + e
+
+# This function accepts x and coeff for a general power function, returns the y value
+def power(x, a, n, b):
+    return a*(x**n) + b
+
+# This function accepts x and coeff for a piecewise (two-piece) function, returns the y value
+def piecewise_2(x, y0, y1, m0, m1, brk):
+    return np.piecewise(x, 
+                        [x < brk, x >=brk],
+                        [lambda x: m0*x + y0, 
+                         lambda x: m1*x + y1-m1*brk])
+
+# This function accepts x and coeff for a piecewise (three-piece) function, returns the y value
+def piecewise_3(x, y0, y1, b0, b1, b2, x0, x1):
+    return np.piecewise(x, 
+                        [x < x0, 
+                         (x >= x0) & (x < x1), 
+                         x >= x1], 
+                        [lambda x: b0*x + y0, 
+                         lambda x: b1*x + y1-b1*x1,
+                         lambda x: b2*x + y1-b2*x1])
+
+# This function accepts x-axis data, y-axis data and the function to use (data type is function), and returns the x-data for the fit function and the y-data for the fit function
+def my_fx(x_data, y_data, fx):
+
+    global fit_resolution
+
+    # Get the optimal paramters given the function and the data
+    popt, pcov = optimize.curve_fit(fx, x_data.to_list(), y_data.to_list())
+
+    # Evaluate the best fit function at {fit_resolution} number of points 
+    (x_data_fit, y_data_fit) = linespace_eval(x_data, y_data, popt, fx, fit_resolution)
+
+    return(x_data_fit, y_data_fit)
+
+# This function accepts x-axis and y-axis data, a tuple of function arguments, a function, and number evalation points.
+# This function returns a list of evenly spaced x values across the x-axis data with the corresponding y-values for the input function
+def linespace_eval(x_data, y_data, args, fx, no_pts):
+
+    x_data_linespace = np.linspace(min(x_data) - 0.01*(max(x_data) - min(x_data)), max(x_data) + 0.01*(max(x_data) - min(x_data)), no_pts)
+
+    y_data_fx = [fx(x, *args) for x in x_data_linespace]
+
+    return (x_data_linespace, y_data_fx)
+
+fit_select = linear
 
 about_text1 = 'Use this interactive sandbox to identify outliers in your data, remove them, and improve your insights.'
 about_text3 = 'Try it!'
@@ -105,28 +164,6 @@ app.layout = html.Div(children=[
     # ------------/ Row 4 /--------------
     dcc.Graph(
         id='outlier-plot',
-        figure={
-            'data': [
-                go.Scatter(
-                    x=x_axis,
-                    y=y_axis,
-                    #text='myText',
-                    mode='markers',
-                    opacity=0.7,
-                    marker={
-                        'size': 15,
-                        'line': {'width': 0.5, 'color': 'white'}
-                    },
-                )
-            ],
-            'layout': go.Layout(
-                xaxis={'title': 'Governor Demand'},
-                yaxis={'title': 'Generator MWG'},
-                margin={'l': 60, 'b': 40, 't': 10, 'r': 10},
-                legend={'x': 0, 'y': 1},
-                hovermode='closest'
-            )
-            }
     ),
 
     html.P(children=[html.Br(),html.Br()]),
@@ -143,14 +180,16 @@ app.layout = html.Div(children=[
 
     # # ------------/ Row 6 /--------------
     dcc.Dropdown(
+        id='fit-dropdown',
         options=[
             {'label': 'linear', 'value': 'linear'},
-            {'label': 'x^2', 'value': 'x^2'},
-            {'label': 'x^3', 'value': 'x^3'},
-            {'label': 'x^4', 'value': 'x^4'},
-            {'label': 'a*x^n', 'value': 'a*x^n'},
-            {'label': 'sqrt(x)', 'value': 'sqrt(x)'},
-            {'label': 'piecewise', 'value': 'piecewise'}
+            {'label': 'x^2', 'value': 'quadratic'},
+            {'label': 'x^3', 'value': 'cubic'},
+            {'label': 'x^4', 'value': 'fourth'},
+            {'label': 'a*x^n', 'value': 'power'},
+            {'label': 'sqrt(x)', 'value': 'root'},
+            {'label': 'two-piece', 'value': 'piecewise_2'},
+            {'label': 'three_piece', 'value': 'piecewise_3'},
         ],
         value='linear'
     ),  
@@ -204,10 +243,11 @@ def parse_contents_table(contents, filename, date, df):
         })
     ])
 
-def update_graph(df):
+def new_graph(df, fit_select):
     
     x_axis = df.iloc[:, 0]
     y_axis = df.iloc[:, 1]
+    (x_fit, y_fit) = my_fx(x_axis, y_axis, fit_select)
 
     return {
         'data': [
@@ -216,6 +256,17 @@ def update_graph(df):
                 y=y_axis,
                 #text='myText',
                 mode='markers',
+                opacity=0.5,
+                marker={
+                    'size': 10,
+                    'line': {'width': 0.5, 'color': 'white'}
+                },
+            ),
+            go.Scatter(
+                x=x_fit,
+                y=y_fit,
+                #text='myText',
+                mode='lines',
                 opacity=0.5,
                 marker={
                     'size': 10,
@@ -234,6 +285,8 @@ def update_graph(df):
 
 
 #---------/ Callbacks /------------------
+
+#-------/ Data Uploaded / -----------------
 @app.callback([Output('output-data-upload', 'children'),
                 Output('outlier-plot', 'figure')],
               [Input('upload-data', 'contents')],
@@ -252,17 +305,32 @@ def update_output(contents, filename, last_modified):
         children = [parse_contents_table(contents, filename, last_modified, upload_df)]
 
         # use dataframe to create a figure
-        graph = update_graph(upload_df)
+        graph = new_graph(upload_df, linear)
 
         return (children, graph)
     
     # On intial page load, or failure, use example data
     else:
         upload_df = pd.read_csv('Resources/design_data.csv')
-        graph = update_graph(upload_df)
+        graph = new_graph(upload_df, linear)
         children =[]
     
     return (children, graph)
+
+#-------/ Fit Select / -----------------
+# @app.callback([Output('outlier-plot', 'figure')],
+#               [Input('fit-dropdown', 'value')])
+# def update_graph(selection):
+    
+#     global upload_df
+#     global fit_select
+#     fit_select = selection
+#     # if there are contents in the upload
+
+#     # use dataframe to create a figure
+#     graph = new_graph(upload_df, fit_select)
+
+#     return graph
 
     
 
