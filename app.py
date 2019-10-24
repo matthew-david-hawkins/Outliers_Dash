@@ -14,7 +14,7 @@ from scipy import optimize
 import numpy as np
 
 # The number of points to evauate on in the best fit function
-fit_resolution = 25
+fit_resolution = 100
 
 # This function accepts x and coeff for a square root function, returns the y value
 def linear(x, m, b):
@@ -62,11 +62,12 @@ def my_fx(x_data, y_data, fx):
 
     global fit_resolution
 
+    print(fx)
     # Get the optimal paramters given the function and the data
-    popt, pcov = optimize.curve_fit(fx, x_data.to_list(), y_data.to_list())
+    popt, pcov = optimize.curve_fit(eval(fx), x_data.to_list(), y_data.to_list())
 
     # Evaluate the best fit function at {fit_resolution} number of points 
-    (x_data_fit, y_data_fit) = linespace_eval(x_data, y_data, popt, fx, fit_resolution)
+    (x_data_fit, y_data_fit) = linespace_eval(x_data, y_data, popt, eval(fx), fit_resolution)
 
     return(x_data_fit, y_data_fit)
 
@@ -80,7 +81,7 @@ def linespace_eval(x_data, y_data, args, fx, no_pts):
 
     return (x_data_linespace, y_data_fx)
 
-fit_select = linear
+#fit_select = linear
 
 about_text1 = 'Use this interactive sandbox to identify outliers in your data, remove them, and improve your insights.'
 about_text3 = 'Try it!'
@@ -159,7 +160,7 @@ app.layout = html.Div(children=[
 
     
 
-    html.P(children=[html.Br(),html.Br()]),
+    #html.P(children=[html.Br(),html.Br()]),
 
     # ------------/ Row 4 /--------------
     dcc.Graph(
@@ -187,16 +188,20 @@ app.layout = html.Div(children=[
             {'label': 'x^3', 'value': 'cubic'},
             {'label': 'x^4', 'value': 'fourth'},
             {'label': 'a*x^n', 'value': 'power'},
-            {'label': 'sqrt(x)', 'value': 'root'},
-            {'label': 'two-piece', 'value': 'piecewise_2'},
-            {'label': 'three_piece', 'value': 'piecewise_3'},
+            {'label': 'sqrt(x)', 'value': 'root'}
+            #{'label': 'two-piece', 'value': 'piecewise_2'},
+            #{'label': 'three_piece', 'value': 'piecewise_3'},
         ],
         value='linear'
     ),  
 
     # ------------/ Row 6 /--------------
     html.P(children=[html.Br(),html.Br()]),
-    html.Div(id='output-data-upload')
+    html.Div(id='output-data-upload'),
+
+    # Hidden div inside the app that stores the intermediate value
+    html.Div(id='intermediate-value', style={'display': 'none'})
+    #html.Div(id='intermediate-value')
 
    ], className='container')
 
@@ -287,14 +292,12 @@ def new_graph(df, fit_select):
 #---------/ Callbacks /------------------
 
 #-------/ Data Uploaded / -----------------
-@app.callback([Output('output-data-upload', 'children'),
-                Output('outlier-plot', 'figure')],
+@app.callback([Output('output-data-upload', 'children'), Output('intermediate-value', 'children')],
               [Input('upload-data', 'contents')],
               [State('upload-data', 'filename'),
                State('upload-data', 'last_modified')])
 def update_output(contents, filename, last_modified):
     
-    global upload_df
     # if there are contents in the upload
     if contents is not None:
 
@@ -304,33 +307,31 @@ def update_output(contents, filename, last_modified):
         # Use dataframe to create table
         children = [parse_contents_table(contents, filename, last_modified, upload_df)]
 
-        # use dataframe to create a figure
-        graph = new_graph(upload_df, linear)
-
-        return (children, graph)
+        return (children, upload_df.to_json(date_format='iso', orient='split'))
     
     # On intial page load, or failure, use example data
     else:
         upload_df = pd.read_csv('Resources/design_data.csv')
-        graph = new_graph(upload_df, linear)
         children =[]
-    
-    return (children, graph)
+        
+    return (children, upload_df.to_json(date_format='iso', orient='split'))
 
 #-------/ Fit Select / -----------------
-# @app.callback([Output('outlier-plot', 'figure')],
-#               [Input('fit-dropdown', 'value')])
-# def update_graph(selection):
+@app.callback(Output('outlier-plot', 'figure'),
+              [Input('fit-dropdown', 'value'), Input('intermediate-value', 'children')])
+def update_graph(selection, jsonified_data):
     
-#     global upload_df
-#     global fit_select
-#     fit_select = selection
-#     # if there are contents in the upload
+    if jsonified_data is not None:
+        user_df = pd.read_json(jsonified_data, orient='split')
+    else:
+        user_df = pd.read_csv('Resources/design_data.csv')
 
-#     # use dataframe to create a figure
-#     graph = new_graph(upload_df, fit_select)
+    fit_select = selection
 
-#     return graph
+    # use dataframe to create a figure
+    graph = new_graph(user_df, fit_select)
+
+    return graph
 
     
 
