@@ -15,7 +15,7 @@ from scipy import optimize
 import numpy as np
 
 # The number of points to evauate on in the best fit function
-fit_resolution = 25
+fit_resolution = 100
 
 # This function accepts x and coeff for a square root function, returns the y value
 def linear(x, m, b):
@@ -159,16 +159,25 @@ app.layout = html.Div(children=[
         multiple=False
     ),
 
-    
-
-    #html.P(children=[html.Br(),html.Br()]),
+    html.P(children=[html.Br(),html.Br()]),
 
     # ------------/ Row 4 /--------------
-    dcc.Graph(
-        id='outlier-plot',
-    ),
-
-    html.P(children=[html.Br(),html.Br()]),
+    html.Div([
+        html.Div([
+            dcc.Graph(id="outlier-plot")],
+            style = {"width": "90%", "display":"inline-block","position":"relative"}),
+        html.Div([
+                html.Div([
+                    dcc.RangeSlider(
+                            id = "y-slider",
+                            value = [0,1],
+                            vertical = True
+                            )], style = {"height": "450px"})
+                ], style = {"width": "5%", "height":"100%","display":"inline-block","position":"relative"}),
+        html.Div([
+            html.Div(id='y-slider-output-container')
+            ], style = {"width": "5%", "height":"100%","display":"inline-block","position": "relative","bottom":"225px","right":"0"})
+    ]),
 
     # ------------/ Row 5 /--------------
     dcc.RangeSlider(
@@ -178,19 +187,6 @@ app.layout = html.Div(children=[
 
     # -----------/ x slider output /--------
     html.Div(id='x-slider-output-container', className='row justify-content-center'),
-
-    html.P(children=[html.Br(),html.Br()]),
-
-    # ------------/ Row 6 /--------------
-    dcc.RangeSlider(
-                id='y-slider',
-                value=[0,1]
-            ),
-
-    # -----------/ y slider output /--------
-    html.Div(id='y-slider-output-container', className='row justify-content-center'),
-
-
 
     html.P(children=[html.Br(),html.Br()]),
 
@@ -207,7 +203,8 @@ app.layout = html.Div(children=[
             #{'label': 'two-piece', 'value': 'piecewise_2'},
             #{'label': 'three_piece', 'value': 'piecewise_3'},
         ],
-        value='linear'
+        value='linear',
+        clearable=False
     ),  
 
     # ------------/ Row 6 /--------------
@@ -321,7 +318,7 @@ def update_slider(data, axis):
     step = round(step, digs)
 
     marks={
-            int(minimum): '{}'.format(axis) + ' = {}'.format(round(minimum, digs)),
+            int(minimum): '{}'.format(axis) + '={}'.format(round(minimum, digs)),
             int(maximum): '{}'.format(round(maximum, digs))
             }
     
@@ -412,7 +409,8 @@ def update_x_slider_readout(value_list):
               [Input('y-slider', 'value')])
 def update_y_slider_readout(value_list):
 
-    return ('{}'.format(value_list[0]) + ' to ' + '{}'.format(value_list[1]))
+    #return ('{}'.format(value_list[0]) + ' to ' + '{}'.format(value_list[1]))
+    return html.P(children=['{}'.format(value_list[1]),html.Br(), ' to ', html.Br(),'{}'.format(value_list[0])])
     
 
 
