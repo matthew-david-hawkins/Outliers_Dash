@@ -1,6 +1,7 @@
 import base64
 import datetime
 import io
+import math
 
 import dash
 from dash.dependencies import Input, Output, State
@@ -14,7 +15,7 @@ from scipy import optimize
 import numpy as np
 
 # The number of points to evauate on in the best fit function
-fit_resolution = 100
+fit_resolution = 25
 
 # This function accepts x and coeff for a square root function, returns the y value
 def linear(x, m, b):
@@ -170,12 +171,26 @@ app.layout = html.Div(children=[
     html.P(children=[html.Br(),html.Br()]),
 
     # ------------/ Row 5 /--------------
-    dcc.Slider(
-        min=0,
-        max=1,
-        step=0.01,
-        value=0.5
-    ),
+    dcc.RangeSlider(
+                id='x-slider',
+                value=[0,1]
+            ),
+
+    # -----------/ x slider output /--------
+    html.Div(id='x-slider-output-container', className='row justify-content-center'),
+
+    html.P(children=[html.Br(),html.Br()]),
+
+    # ------------/ Row 6 /--------------
+    dcc.RangeSlider(
+                id='y-slider',
+                value=[0,1]
+            ),
+
+    # -----------/ y slider output /--------
+    html.Div(id='y-slider-output-container', className='row justify-content-center'),
+
+
 
     html.P(children=[html.Br(),html.Br()]),
 
@@ -248,10 +263,8 @@ def parse_contents_table(contents, filename, date, df):
         })
     ])
 
-def new_graph(df, fit_select):
+def new_graph(df, fit_select, x_axis, y_axis):
     
-    x_axis = df.iloc[:, 0]
-    y_axis = df.iloc[:, 1]
     (x_fit, y_fit) = my_fx(x_axis, y_axis, fit_select)
 
     return {
@@ -283,15 +296,42 @@ def new_graph(df, fit_select):
             xaxis={'title': df.columns[0]},
             yaxis={'title': df.columns[1]},
             margin={'l': 60, 'b': 40, 't': 10, 'r': 10},
-            legend={'x': 0, 'y': 1},
+            #legend={'x': 0, 'y': 1},
+            showlegend=False,
             hovermode='closest'
             )
     }
+
+def update_slider(data, axis):
+    minimum = min(data)
+    maximum = max(data)
+
+    value = [minimum, maximum]
+
+    # Step for slider is 1/200 of the range of x values
+    my_range = (maximum - minimum)
+    step = my_range/200
+
+    # Number of digits to round to 
+    digs = math.ceil(math.log10(1/my_range)+3)
+
+    if digs < 0:
+        digs = 0
+
+    step = round(step, digs)
+
+    marks={
+            int(minimum): '{}'.format(axis) + ' = {}'.format(round(minimum, digs)),
+            int(maximum): '{}'.format(round(maximum, digs))
+            }
+    
+    return (minimum, maximum, marks, value, step)
 
 
 #---------/ Callbacks /------------------
 
 #-------/ Data Uploaded / -----------------
+# display the data that the user has uploaded in a table, and store data that the user uploaded into a hidden div, and update x/y sliders settings
 @app.callback([Output('output-data-upload', 'children'), Output('intermediate-value', 'children')],
               [Input('upload-data', 'contents')],
               [State('upload-data', 'filename'),
@@ -313,11 +353,22 @@ def update_output(contents, filename, last_modified):
     else:
         upload_df = pd.read_csv('Resources/design_data.csv')
         children =[]
-        
+    
+
     return (children, upload_df.to_json(date_format='iso', orient='split'))
 
-#-------/ Fit Select / -----------------
-@app.callback(Output('outlier-plot', 'figure'),
+#-------/ Fit Selected / -----------------
+@app.callback([Output('outlier-plot', 'figure'), 
+                Output('x-slider', 'min'), 
+                Output('x-slider', 'max'), 
+                Output('x-slider', 'marks'), 
+                Output('x-slider', 'value'), 
+                Output('x-slider', 'step'),
+                Output('y-slider', 'min'), 
+                Output('y-slider', 'max'), 
+                Output('y-slider', 'marks'), 
+                Output('y-slider', 'value'), 
+                Output('y-slider', 'step')],
               [Input('fit-dropdown', 'value'), Input('intermediate-value', 'children')])
 def update_graph(selection, jsonified_data):
     
@@ -328,11 +379,40 @@ def update_graph(selection, jsonified_data):
 
     fit_select = selection
 
+    x_data = user_df.iloc[:, 0]
+    y_data = user_df.iloc[:, 1]
+
     # use dataframe to create a figure
-    graph = new_graph(user_df, fit_select)
+    graph = new_graph(user_df, fit_select, x_data, y_data)
 
-    return graph
+    (x_min, x_max, x_marks, x_value, x_step) = update_slider(x_data, 'x')
+    (y_min, y_max, y_marks, y_value, y_step) = update_slider(y_data, 'y')
 
+    return (graph, 
+            x_min, 
+            x_max, 
+            x_marks, 
+            x_value, 
+            x_step,
+            y_min, 
+            y_max, 
+            y_marks, 
+            y_value, 
+            y_step)
+
+#-------/ X Slider Changed / -----------------
+
+@app.callback(Output('x-slider-output-container', 'children'),
+              [Input('x-slider', 'value')])
+def update_x_slider_readout(value_list):
+
+    return ('{}'.format(value_list[0]) + ' to ' + '{}'.format(value_list[1]))
+
+@app.callback(Output('y-slider-output-container', 'children'),
+              [Input('y-slider', 'value')])
+def update_y_slider_readout(value_list):
+
+    return ('{}'.format(value_list[0]) + ' to ' + '{}'.format(value_list[1]))
     
 
 
