@@ -161,6 +161,9 @@ def new_graph(df, fit_select, x_axis, y_axis, x_value_list, y_value_list):
     x_range = max(x_axis) - min(x_axis)
     y_range = max(y_axis) - min(y_axis)
 
+    inlier_df = pd.DataFrame({"x" : x_inliers, "y": y_inliers})
+    outlier_df = pd.DataFrame({"x" : x_outliers, "y": y_outliers}) 
+
     return ({
         'data': [
             # Inlier Data
@@ -261,7 +264,7 @@ def new_graph(df, fit_select, x_axis, y_axis, x_value_list, y_value_list):
             hovermode='closest'
 
             )
-    }, fit_equation)
+    }, fit_equation, inlier_df, outlier_df)
 
 def format_float(data, point):
     
@@ -313,7 +316,10 @@ external_scripts = [
         'integrity': 'sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM',
         'crossorigin': 'anonymous'
     },
-    'https://codepen.io/chriddyp/pen/bWLwgP.css'
+    'https://codepen.io/chriddyp/pen/bWLwgP.css',
+    "d3.v5.min.js",
+    "download.js",
+    "static.js",
 ]
 
 # external CSS stylesheets
@@ -382,7 +388,8 @@ app.layout = html.Div(children=[
             html.H6('2.  Modify with the controls below'), 
             ], style = {"width": "33%", "display":"inline-block","position":"relative",'textAlign': 'center'}),
         html.Div([
-            html.A('3.  Download Your Clean Data', href='Resources/design_data.csv', download="my_data.csv"),
+            #html.A('3.  Download Your Clean Data', href='Resources/design_data.csv', download="my_data.csv", id='download-button')
+            html.A('3.  Download Your Clean Data', href='#', id='download-button')
         ], style = {"width": "34%", "display":"inline-block","position":"relative",'textAlign': 'left'}),
     ]),
 
@@ -458,9 +465,14 @@ app.layout = html.Div(children=[
     html.P(children=[html.Br(),html.Br()]),
     html.Div(id='output-data-upload'),
 
-    # Hidden div inside the app that stores the intermediate value
-    html.Div(id='intermediate-value', style={'display': 'none'})
-    #html.Div(id='intermediate-value')
+    # Hidden div inside the app that stores the data uploaded by the user
+    html.Div(id='uploaded-json', style={'display': 'none'}),
+
+    # Hidden div inside the app that stores inliers
+    html.Div(id='uploaded-inliers-csv', style={'display': 'none'}),
+
+    # Hidden div inside the app that stores outliers
+    html.Div(id='uploaded-outliers-csv', style={'display': 'none'})
 
    ], className='container')
 
@@ -512,7 +524,7 @@ def parse_contents_table(contents, filename, date, df):
 #-------/ Data Uploaded or contraints changed / -----------------
 # display the data that the user has uploaded in a table, and store data that the user uploaded into a hidden div, and update x/y sliders settings
 @app.callback([Output('output-data-upload', 'children'), 
-                Output('intermediate-value', 'children'),
+                Output('uploaded-json', 'children'),
                 Output('x-slider', 'min'), 
                 Output('x-slider', 'max'), 
                 Output('x-slider', 'marks'), 
@@ -566,9 +578,11 @@ def update_output(contents, filename, last_modified):
 @app.callback([Output('outlier-plot', 'figure'),
                 Output('fit-equation', 'children'),
                 Output('x-slider-output-container', 'children'),
-                Output('y-slider-output-container', 'children')],
+                Output('y-slider-output-container', 'children'),
+                Output('uploaded-inliers-csv', 'children'),
+                Output('uploaded-outliers-csv', 'children')],
               [Input('fit-dropdown', 'value'), 
-              Input('intermediate-value', 'children'),
+              Input('uploaded-json', 'children'),
               Input('x-slider', 'value'),
               Input('y-slider', 'value')]
               )
@@ -585,7 +599,7 @@ def update_graph(selection, jsonified_data, x_value_list, y_value_list):
     y_data = user_df.iloc[:, 1]
 
     # use dataframe to create a figure
-    (graph, equation) = new_graph(user_df, fit_select, x_data, y_data, x_value_list, y_value_list)
+    (graph, equation, inlier_df, outlier_df) = new_graph(user_df, fit_select, x_data, y_data, x_value_list, y_value_list)
     
     x_slider_reading = '{}'.format(format_float(x_value_list, x_value_list[0])) + ' to ' + '{}'.format(format_float(x_value_list, x_value_list[1]))
     y_slider_reading = html.Div(
@@ -599,7 +613,9 @@ def update_graph(selection, jsonified_data, x_value_list, y_value_list):
     return (graph, 
             equation,
             x_slider_reading,
-            y_slider_reading
+            y_slider_reading,
+            inlier_df.to_csv(date_format='iso'),
+            outlier_df.to_csv(date_format='iso')
             )
 
 if __name__=='__main__':
