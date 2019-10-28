@@ -1,11 +1,7 @@
 
 setTimeout(function(){
 
-    alert('If you see this alert, then your custom JavaScript script has run!');
     var mydownload = d3.select("#download-button");
-    console.log(mydownload);
-    console.log(mydownload.attr('href'));
-    console.log(mydownload.attr('download'));
 
     mydownload.on("click", function() {
 
