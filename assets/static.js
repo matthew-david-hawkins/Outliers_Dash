@@ -12,6 +12,7 @@ setTimeout(function(){
         var outliers_csv = d3.select("#uploaded-outliers-csv").text();
 
         download(outliers_csv, "outliers.csv", "text/csv");
+
     })
 
 }, 3000);

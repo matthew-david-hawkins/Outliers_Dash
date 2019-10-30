@@ -7,6 +7,7 @@ import dash
 from dash.dependencies import Input, Output, State
 import dash_core_components as dcc
 import dash_html_components as html
+import dash_bootstrap_components as dbc
 import dash_table
 import pandas as pd
 import plotly.graph_objs as go
@@ -343,6 +344,33 @@ colors = {
 # ---------------------------------------
 app.layout = html.Div(children=[
 
+    html.Div(
+        [
+            dbc.Modal(
+                [
+                    dbc.ModalHeader("Help us make your experience better"),
+                    dbc.ModalBody(
+                        html.Div([
+                            
+                            html.P("What can we do to make this tool more useful to you?"),
+                            dcc.Textarea(
+                                placeholder='Type here...',
+                                value='',
+                                style={'width': '100%'},
+                                id ="user-comment"
+                            )
+                            ]),       
+                    ),
+                    dbc.ModalFooter(
+                        dbc.Button("Submit", id="close", className="ml-auto")
+                    ),
+                ],
+                id="modal",
+                size="lg"
+            ),
+        ]
+    ), 
+
    html.Div([
     # ------------/ Row 1 /--------------   
     html.Div([
@@ -472,7 +500,11 @@ app.layout = html.Div(children=[
     html.Div(id='uploaded-inliers-csv', style={'display': 'none'}),
 
     # Hidden div inside the app that stores outliers
-    html.Div(id='uploaded-outliers-csv', style={'display': 'none'})
+    html.Div(id='uploaded-outliers-csv', style={'display': 'none'}),
+
+    # Hidden div inside the app that stores outliers
+    html.Div(id='placeholder', style={'display': 'none'})
+
 
    ], className='container')
 
@@ -617,6 +649,43 @@ def update_graph(selection, jsonified_data, x_value_list, y_value_list):
             inlier_df.to_csv(date_format='iso'),
             outlier_df.to_csv(date_format='iso')
             )
+
+@app.callback(
+    Output("modal", "is_open"),
+    [Input("close", "n_clicks"), Input("download-button", "n_clicks")],
+    [State("modal", "is_open")],
+)
+def toggle_modal(close_clicks, download_clicks, is_open):
+    
+    if download_clicks:
+        
+        if close_clicks:
+
+            return not is_open
+
+        return not is_open
+
+    return False
+
+@app.callback(
+    Output("placeholder", "children"),
+    [Input("modal", "is_open")],
+    [State("user-comment", "value")]
+)
+def update_comments(n_clicks, string):
+
+    if string:
+
+        comments_df = pd.read_csv("Resources/comments.csv")
+        comment_list = comments_df["comment"].to_list()
+        comment_list.append(string)
+        comments_df = pd.DataFrame(data = {"comment" : comment_list})
+        comments_df.to_csv("Resources/comments.csv")
+
+        return comments_df.to_json(date_format='iso', orient='split')
+    
+    return ""
+
 
 if __name__=='__main__':
     app.run_server(debug=True)
