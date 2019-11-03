@@ -493,6 +493,9 @@ app.layout = html.Div(children=[
     html.P(children=[html.Br(),html.Br()]),
     html.Div(id='output-data-upload'),
 
+    # ------------/ Feedback Button /--------------
+    dbc.Button("Request A New Feature / Make a Complaint", id="open"),
+
     # Hidden div inside the app that stores the data uploaded by the user
     html.Div(id='uploaded-json', style={'display': 'none'}),
 
@@ -650,14 +653,15 @@ def update_graph(selection, jsonified_data, x_value_list, y_value_list):
             outlier_df.to_csv(date_format='iso')
             )
 
+#-------/ Open feedback form / -----------------
 @app.callback(
     Output("modal", "is_open"),
-    [Input("close", "n_clicks"), Input("download-button", "n_clicks")],
+    [Input("close", "n_clicks"), Input("download-button", "n_clicks"), Input("open", "n_clicks")],
     [State("modal", "is_open")],
 )
-def toggle_modal(close_clicks, download_clicks, is_open):
+def toggle_modal(close_clicks, download_clicks, open_click, is_open):
     
-    if download_clicks:
+    if download_clicks or open_click:
         
         if close_clicks:
 
@@ -667,6 +671,7 @@ def toggle_modal(close_clicks, download_clicks, is_open):
 
     return False
 
+#-------/ Add feedback to feedback list / -----------------
 @app.callback(
     Output("placeholder", "children"),
     [Input("modal", "is_open")],
