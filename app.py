@@ -579,13 +579,29 @@ app.layout = html.Div(children=[
     html.Div(id='last-comment', style={'display': 'none'}),
 
     # Hidden div for callback placeholder
-    html.Div(id='placeholder', style={'display': 'none'})
+    html.Div(id='placeholder', style={'display': 'none'}),
+
+    # Hidden div for callback placeholder
+    html.Div(id='placeholder2', style={'display': 'none'})
 
    ], className='container')
 
 ])
 
+
 #---------/ Callbacks /------------------
+#-------/ Intial Callback Records Session Start / -----------------
+@app.callback(Output('session-start', 'children'),
+              [Input('placeholder2', 'children')]
+              )
+def start_record(placeholder):
+
+    print(f"Callback: start_record")
+
+    #set session start record as the current time
+    session_start = datetime.datetime.now()
+
+    return session_start
 
 #-------/ Data Uploaded or contraints changed / -----------------
 # display the data that the user has uploaded in a table, and store data that the user uploaded into a hidden div, and update x/y sliders settings
@@ -601,24 +617,18 @@ app.layout = html.Div(children=[
                 Output('y-slider', 'marks'), 
                 Output('y-slider', 'value'), 
                 Output('y-slider', 'step'),
-                Output('session-start', 'children'),
                 Output('upload-name', 'children'),
                 Output('upload-length', 'children'),
                 Output('upload-width', 'children'),],
               [Input('upload-data', 'contents')],
               [State('upload-data', 'filename'),
                State('upload-data', 'last_modified'),
-               State('session-start', 'children'),
                State('upload-name', 'children'),
                State('upload-length', 'children'),
                State('upload-width', 'children')])
-def update_output(contents, filename, last_modified, session_start, upload_name, upload_length, upload_width):
+def update_output(contents, filename, last_modified, upload_name, upload_length, upload_width):
 
-    # If there are no contents in the session start record
-    if session_start is None:
-
-        # set session start record as the current time
-        session_start = datetime.datetime.now()
+    print(f"Callback: update_ouput - contents:{contents}")
     
     # if there are contents in the upload
     if contents is not None:
@@ -661,10 +671,10 @@ def update_output(contents, filename, last_modified, session_start, upload_name,
             y_marks, 
             y_value, 
             y_step, 
-            session_start,
             upload_name,
             upload_length,
             upload_width)
+            
 
 #-------/ Fit Selected, Slider Parameters Changed / Uploaded Data Changed / -----------------
 @app.callback([Output('outlier-plot', 'figure'),
@@ -683,6 +693,7 @@ def update_output(contents, filename, last_modified, session_start, upload_name,
               )
 def update_graph(selection, jsonified_data, x_value_list, y_value_list):
     
+    print(f"Callback: update_graph - selection:{selection} - jsonified_data: - x_value_list:{x_value_list} - y_value_list:{y_value_list}")
     if jsonified_data is not None:
         user_df = pd.read_json(jsonified_data, orient='split')
     else:
@@ -734,6 +745,7 @@ def update_graph(selection, jsonified_data, x_value_list, y_value_list):
 )
 def toggle_modal(close_clicks, download_clicks, open_click, is_open, xmin, xmax, xslider, ymin, ymax, yslider, fitselect):
     
+    print(f"Callback: toggle_modal - close_clicks:{close_clicks} - download_clicks:{download_clicks} - open_click{open_click}")
     if download_clicks or open_click:
 
         # On a feedback open request or download click, record the time, slider settings, and fit selection
@@ -746,7 +758,7 @@ def toggle_modal(close_clicks, download_clicks, open_click, is_open, xmin, xmax,
 
         return not is_open, end_interation_time, dictionary, fitselect
 
-    return False, "", "", ""
+    return False, dash.no_update, dash.no_update, dash.no_update
 
 #-------/ Add feedback to feedback list / -----------------
 @app.callback(
@@ -756,11 +768,12 @@ def toggle_modal(close_clicks, download_clicks, open_click, is_open, xmin, xmax,
 )
 def update_comments(n_clicks, string, current_comment):
 
+    print(f"Callback: update_comments - n_clicks:{n_clicks} - string:{string} - current_comment{current_comment}")
     if string:
 
         return string
     
-    return current_comment
+    return dash.no_update
 
 #-------/ Write to Session Info / -----------------
 @app.callback(
@@ -778,13 +791,17 @@ def update_comments(n_clicks, string, current_comment):
 )
 def update_record(session_start, upload_name, download_time, last_comment, upload_length, upload_width, fit_download, slider_download,  inlier_count, outlier_count):
 
+    print(f"Callback: update_record - session_start:{session_start} - upload_name:{upload_name} - download_time{download_time}")
+
     if session_start is not None:
         events_df = pd.read_csv("Resources/events.csv")
         event_list = events_df["Events"].to_list()
         event_dictionary = "{" + f"'session_start':{session_start}, 'upload_name':{upload_name}, 'upload_length':{upload_length}, 'upload_width':{upload_width}, 'download_time':{download_time}, 'fit_download':{fit_download}, 'slider_download':{slider_download}, 'last_comment':{last_comment}, 'inlier_count':{inlier_count}, 'outlier_count':{outlier_count}" + "}"
         event_list.append(event_dictionary)
+        print(event_dictionary)
         events_df = pd.DataFrame(data = {"Events" : event_list})
         events_df.to_csv("Resources/events.csv")
+
 
 if __name__=='__main__':
     app.run_server(debug=True)
