@@ -301,6 +301,49 @@ def update_slider(data, axis):
     return (minimum, maximum, marks, value, step)
 
 
+def parse_contents(contents, filename, date):
+    content_type, content_string = contents.split(',')
+
+    decoded = base64.b64decode(content_string)
+    try:
+        if 'csv' in filename:
+            
+            try:
+                # Assume that the user uploaded a CSV file with utf-8 encoding
+                df = pd.read_csv( io.StringIO(decoded.decode('utf-8')), index_col=None)
+
+            except:
+                # if read is unsuccessul, try ISO encoding
+                df = pd.read_csv( io.StringIO(decoded.decode('ISO-8859-1')), index_col=None)
+
+        elif 'xls' in filename:
+            # Assume that the user uploaded an excel file
+            df = pd.read_excel(io.BytesIO(decoded))
+
+    except Exception as e:
+        print(e)
+        return html.Div([
+            'There was an error processing this file.'
+        ])
+    
+    return df
+
+def parse_contents_table(contents, filename, date, df):
+    return html.Div([
+        html.H5(filename),
+        html.H6(datetime.datetime.fromtimestamp(date)),
+
+        dash_table.DataTable(
+            data=df.to_dict('records'),
+            columns=[{'name': i, 'id': i} for i in df.columns]
+        ),
+
+        html.Hr(),  # horizontal line
+    ])
+
+
+
+
 about_text1 = 'Use this interactive sandbox to identify outliers in your data, remove them, and improve your insights.'
 about_text3 = 'Try it!'
 
@@ -505,54 +548,42 @@ app.layout = html.Div(children=[
     # Hidden div inside the app that stores outliers
     html.Div(id='uploaded-outliers-csv', style={'display': 'none'}),
 
-    # Hidden div inside the app that stores outliers
-    html.Div(id='placeholder', style={'display': 'none'})
+    # Hidden div that stores the session start time
+    html.Div(id='session-start', style={'display': 'none'}),
 
+    # Hidden div that stores the uploaded file name
+    html.Div(id='upload-name', style={'display': 'none'}),
+
+    # Hidden div that stores the uploaded file length
+    html.Div(id='upload-length', style={'display': 'none'}),
+
+    # Hidden div that stores the uploaded file width
+    html.Div(id='upload-width', style={'display': 'none'}),
+
+    # Hidden div that stores the download press time
+    html.Div(id='download-time', style={'display': 'none'}),
+
+    # Hidden div that stores the fit type selection at download
+    html.Div(id='fit-download', style={'display': 'none'}),
+
+    # Hidden div that stores the slider settings at download
+    html.Div(id='slider-download', style={'display': 'none'}),
+
+    # Hidden div that stores the number of inliers at download
+    html.Div(id='inlier-count', style={'display': 'none'}),
+
+    # Hidden div that stores the number of outliers at download
+    html.Div(id='outlier-count', style={'display': 'none'}),
+
+    # Hidden div that stores the last comment made by the user
+    html.Div(id='last-comment', style={'display': 'none'}),
+
+    # Hidden div for callback placeholder
+    html.Div(id='placeholder', style={'display': 'none'})
 
    ], className='container')
 
 ])
-
-def parse_contents(contents, filename, date):
-    content_type, content_string = contents.split(',')
-
-    decoded = base64.b64decode(content_string)
-    try:
-        if 'csv' in filename:
-            # Assume that the user uploaded a CSV file
-            df = pd.read_csv(
-                io.StringIO(decoded.decode('utf-8')))
-        elif 'xls' in filename:
-            # Assume that the user uploaded an excel file
-            df = pd.read_excel(io.BytesIO(decoded))
-
-    except Exception as e:
-        print(e)
-        return html.Div([
-            'There was an error processing this file.'
-        ])
-    
-    return df
-
-def parse_contents_table(contents, filename, date, df):
-    return html.Div([
-        html.H5(filename),
-        html.H6(datetime.datetime.fromtimestamp(date)),
-
-        dash_table.DataTable(
-            data=df.to_dict('records'),
-            columns=[{'name': i, 'id': i} for i in df.columns]
-        ),
-
-        html.Hr(),  # horizontal line
-
-        # # For debugging, display the raw contents provided by the web browser
-        # html.Div('Raw Content'),
-        # html.Pre(contents[0:200] + '...', style={
-        #     'whiteSpace': 'pre-wrap',
-        #     'wordBreak': 'break-all'
-        # })
-    ])
 
 #---------/ Callbacks /------------------
 
@@ -569,17 +600,40 @@ def parse_contents_table(contents, filename, date, df):
                 Output('y-slider', 'max'), 
                 Output('y-slider', 'marks'), 
                 Output('y-slider', 'value'), 
-                Output('y-slider', 'step')],
+                Output('y-slider', 'step'),
+                Output('session-start', 'children'),
+                Output('upload-name', 'children'),
+                Output('upload-length', 'children'),
+                Output('upload-width', 'children'),],
               [Input('upload-data', 'contents')],
               [State('upload-data', 'filename'),
-               State('upload-data', 'last_modified')])
-def update_output(contents, filename, last_modified):
+               State('upload-data', 'last_modified'),
+               State('session-start', 'children'),
+               State('upload-name', 'children'),
+               State('upload-length', 'children'),
+               State('upload-width', 'children')])
+def update_output(contents, filename, last_modified, session_start, upload_name, upload_length, upload_width):
+
+    # If there are no contents in the session start record
+    if session_start is None:
+
+        # set session start record as the current time
+        session_start = datetime.datetime.now()
     
     # if there are contents in the upload
     if contents is not None:
 
+        # store the filename for record
+        upload_name = filename
+
         # Use the contents to create a dataframe
         upload_df = parse_contents(contents, filename, last_modified)
+
+        # store the length of the file uploaded for record
+        upload_length = len(upload_df)
+
+        # store the width of the file uploaded for record
+        upload_width = len(upload_df.columns)
 
         # Use dataframe to create table
         children = [parse_contents_table(contents, filename, last_modified, upload_df)]
@@ -607,15 +661,21 @@ def update_output(contents, filename, last_modified):
             y_marks, 
             y_value, 
             y_step, 
-            )
+            session_start,
+            upload_name,
+            upload_length,
+            upload_width)
 
-#-------/ Fit Selected / -----------------
+#-------/ Fit Selected, Slider Parameters Changed / Uploaded Data Changed / -----------------
 @app.callback([Output('outlier-plot', 'figure'),
                 Output('fit-equation', 'children'),
                 Output('x-slider-output-container', 'children'),
                 Output('y-slider-output-container', 'children'),
                 Output('uploaded-inliers-csv', 'children'),
-                Output('uploaded-outliers-csv', 'children')],
+                Output('uploaded-outliers-csv', 'children'),
+                Output('inlier-count', 'children'),
+                Output('outlier-count', 'children')
+                ],
               [Input('fit-dropdown', 'value'), 
               Input('uploaded-json', 'children'),
               Input('x-slider', 'value'),
@@ -650,47 +710,81 @@ def update_graph(selection, jsonified_data, x_value_list, y_value_list):
             x_slider_reading,
             y_slider_reading,
             inlier_df.to_csv(date_format='iso'),
-            outlier_df.to_csv(date_format='iso')
+            outlier_df.to_csv(date_format='iso'),
+            len(inlier_df),
+            len(outlier_df)
             )
 
-#-------/ Open feedback form / -----------------
+#-------/ Download button clicked / Open feedback form / -----------------
 @app.callback(
-    Output("modal", "is_open"),
+    [Output("modal", "is_open"), 
+    Output("download-time", "children"),
+    Output("slider-download", "children"),
+    Output("fit-download", "children")
+    ],
     [Input("close", "n_clicks"), Input("download-button", "n_clicks"), Input("open", "n_clicks")],
-    [State("modal", "is_open")],
+    [State("modal", "is_open"), 
+    State('x-slider', 'min'), 
+    State('x-slider', 'max'), 
+    State('x-slider', 'value'),
+    State('y-slider', 'min'), 
+    State('y-slider', 'max'), 
+    State('y-slider', 'value'),
+    State('fit-dropdown', 'value')],
 )
-def toggle_modal(close_clicks, download_clicks, open_click, is_open):
+def toggle_modal(close_clicks, download_clicks, open_click, is_open, xmin, xmax, xslider, ymin, ymax, yslider, fitselect):
     
     if download_clicks or open_click:
+
+        # On a feedback open request or download click, record the time, slider settings, and fit selection
+        end_interation_time = datetime.datetime.now()
+        dictionary = "{" + f"'xmin':{xmin}, 'xmax':{xmax}, 'xslider':{xslider}, 'ymin':{ymin}, 'ymax':{ymax}, 'yslider':{yslider}" + "}"
         
         if close_clicks:
 
-            return not is_open
+            return not is_open, end_interation_time, dictionary, fitselect
 
-        return not is_open
+        return not is_open, end_interation_time, dictionary, fitselect
 
-    return False
+    return False, "", "", ""
 
 #-------/ Add feedback to feedback list / -----------------
 @app.callback(
-    Output("placeholder", "children"),
+    Output("last-comment", "children"),
     [Input("modal", "is_open")],
-    [State("user-comment", "value")]
+    [State("user-comment", "value"), State("last-comment", "children")]
 )
-def update_comments(n_clicks, string):
+def update_comments(n_clicks, string, current_comment):
 
     if string:
 
-        comments_df = pd.read_csv("Resources/comments.csv")
-        comment_list = comments_df["comment"].to_list()
-        comment_list.append(string)
-        comments_df = pd.DataFrame(data = {"comment" : comment_list})
-        comments_df.to_csv("Resources/comments.csv")
-
-        return comments_df.to_json(date_format='iso', orient='split')
+        return string
     
-    return ""
+    return current_comment
 
+#-------/ Write to Session Info / -----------------
+@app.callback(
+    Output("placeholder", "children"),
+    [Input("session-start", "children"),
+    Input("upload-name", "children"),
+    Input("download-time", "children"),
+    Input("last-comment", "children")],
+    [State("upload-length", "children"),
+    State("upload-width", "children"),
+    State("fit-download", "children"),
+    State("slider-download", "children"),
+    State("inlier-count", "children"),
+    State("outlier-count", "children"),]
+)
+def update_record(session_start, upload_name, download_time, last_comment, upload_length, upload_width, fit_download, slider_download,  inlier_count, outlier_count):
+
+    if session_start is not None:
+        events_df = pd.read_csv("Resources/events.csv")
+        event_list = events_df["Events"].to_list()
+        event_dictionary = "{" + f"'session_start':{session_start}, 'upload_name':{upload_name}, 'upload_length':{upload_length}, 'upload_width':{upload_width}, 'download_time':{download_time}, 'fit_download':{fit_download}, 'slider_download':{slider_download}, 'last_comment':{last_comment}, 'inlier_count':{inlier_count}, 'outlier_count':{outlier_count}" + "}"
+        event_list.append(event_dictionary)
+        events_df = pd.DataFrame(data = {"Events" : event_list})
+        events_df.to_csv("Resources/events.csv")
 
 if __name__=='__main__':
     app.run_server(debug=True)
