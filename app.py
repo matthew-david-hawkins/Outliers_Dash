@@ -12,11 +12,12 @@ import dash_table
 import pandas as pd
 import plotly.graph_objs as go
 import flask
+from flask_pymongo import PyMongo
 from scipy import optimize
 import numpy as np
 
 # The number of points to evauate on in the best fit function
-fit_resolution = 100
+fit_resolution = 50
 
 # This function accepts x and coeff for a square root function, returns the y value
 def linear(x, m, b):
@@ -341,9 +342,6 @@ def parse_contents_table(contents, filename, date, df):
         html.Hr(),  # horizontal line
     ])
 
-
-
-
 about_text1 = 'Use this interactive sandbox to identify outliers in your data, remove them, and improve your insights.'
 about_text3 = 'Try it!'
 
@@ -366,10 +364,6 @@ external_scripts = [
     "static.js",
 ]
 
-# external CSS stylesheets
-# external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-
-
 server = flask.Flask(__name__)
 # server.secret_key = os.environ.get('secret_key', str(randint(0, 1000000)))
 app = dash.Dash(__name__, 
@@ -377,10 +371,18 @@ app = dash.Dash(__name__,
 
 app.title = "Outlier Removal Tool"
 
+deployment = "mongodb://heroku_6j7pzr71:7d1c99omephlb501uffe1buhk8@ds241288.mlab.com:41288/heroku_6j7pzr71"
+testing = "mongodb://localhost:27017/myDatabase"
+server.config["MONGO_URI"] = deployment
+mongo = PyMongo(server)
+
 colors = {
     'background': "#111111",
     'text': '#7FDBFF'
 }
+
+# Define the collection to use
+collection = mongo.db.events
 
 # -----------/ App Layout /--------------
 # ---------------------------------------
@@ -504,6 +506,7 @@ app.layout = html.Div(children=[
                 html.Div([
                     dcc.RangeSlider(
                             id = "y-slider",
+                            updatemode='drag',
                             value = [0,1],
                             vertical = True
                             )], style = {"height": "335px"})
@@ -519,6 +522,7 @@ app.layout = html.Div(children=[
             html.Div([
                 dcc.RangeSlider(
                 id='x-slider',
+                updatemode='drag',
                 value=[0,1]
                 ),
             ], style = {"width": "73%", "display":"inline-block","position":"relative"}),
@@ -596,7 +600,7 @@ app.layout = html.Div(children=[
               )
 def start_record(placeholder):
 
-    print(f"Callback: start_record")
+    #print(f"Callback: start_record")
 
     #set session start record as the current time
     session_start = datetime.datetime.now()
@@ -617,18 +621,16 @@ def start_record(placeholder):
                 Output('y-slider', 'marks'), 
                 Output('y-slider', 'value'), 
                 Output('y-slider', 'step'),
-                Output('upload-name', 'children'),
                 Output('upload-length', 'children'),
-                Output('upload-width', 'children'),],
+                Output('upload-width', 'children'),
+                Output('upload-name', 'children')],
               [Input('upload-data', 'contents')],
               [State('upload-data', 'filename'),
                State('upload-data', 'last_modified'),
-               State('upload-name', 'children'),
-               State('upload-length', 'children'),
-               State('upload-width', 'children')])
-def update_output(contents, filename, last_modified, upload_name, upload_length, upload_width):
+               State('upload-name', 'children')])
+def update_output(contents, filename, last_modified, upload_name):
 
-    print(f"Callback: update_ouput - contents:{contents}")
+    #print(f"Callback: update_ouput - contents:{contents}")
     
     # if there are contents in the upload
     if contents is not None:
@@ -647,33 +649,59 @@ def update_output(contents, filename, last_modified, upload_name, upload_length,
 
         # Use dataframe to create table
         children = [parse_contents_table(contents, filename, last_modified, upload_df)]
+
+        x_data = upload_df.iloc[:, 0]
+        y_data = upload_df.iloc[:, 1]
+
+        (x_min, x_max, x_marks, x_value, x_step) = update_slider(x_data, 'x')
+        (y_min, y_max, y_marks, y_value, y_step) = update_slider(y_data, 'y')
+
+        return (children, 
+        upload_df.to_json(date_format='iso', orient='split'),
+        x_min, 
+        x_max, 
+        x_marks, 
+        x_value, 
+        x_step,
+        y_min, 
+        y_max, 
+        y_marks, 
+        y_value, 
+        y_step,
+        upload_length,
+        upload_width,
+        upload_name
+        )
     
     # On intial page load, or failure, use example data
     else:
         upload_df = pd.read_csv('Resources/design_data.csv')
         children =[]
     
-    x_data = upload_df.iloc[:, 0]
-    y_data = upload_df.iloc[:, 1]
+        x_data = upload_df.iloc[:, 0]
+        y_data = upload_df.iloc[:, 1]
 
-    (x_min, x_max, x_marks, x_value, x_step) = update_slider(x_data, 'x')
-    (y_min, y_max, y_marks, y_value, y_step) = update_slider(y_data, 'y')
+        (x_min, x_max, x_marks, x_value, x_step) = update_slider(x_data, 'x')
+        (y_min, y_max, y_marks, y_value, y_step) = update_slider(y_data, 'y')
 
-    return (children, 
-            upload_df.to_json(date_format='iso', orient='split'),
-            x_min, 
-            x_max, 
-            x_marks, 
-            x_value, 
-            x_step,
-            y_min, 
-            y_max, 
-            y_marks, 
-            y_value, 
-            y_step, 
-            upload_name,
-            upload_length,
-            upload_width)
+        return (children, 
+        upload_df.to_json(date_format='iso', orient='split'),
+        x_min, 
+        x_max, 
+        x_marks, 
+        x_value, 
+        x_step,
+        y_min, 
+        y_max, 
+        y_marks, 
+        y_value, 
+        y_step,
+        dash.no_update,
+        dash.no_update,
+        dash.no_update
+        )
+
+
             
 
 #-------/ Fit Selected, Slider Parameters Changed / Uploaded Data Changed / -----------------
@@ -693,7 +721,7 @@ def update_output(contents, filename, last_modified, upload_name, upload_length,
               )
 def update_graph(selection, jsonified_data, x_value_list, y_value_list):
     
-    print(f"Callback: update_graph - selection:{selection} - jsonified_data: - x_value_list:{x_value_list} - y_value_list:{y_value_list}")
+    #print(f"Callback: update_graph - selection:{selection} - jsonified_data: - x_value_list:{x_value_list} - y_value_list:{y_value_list}")
     if jsonified_data is not None:
         user_df = pd.read_json(jsonified_data, orient='split')
     else:
@@ -745,7 +773,7 @@ def update_graph(selection, jsonified_data, x_value_list, y_value_list):
 )
 def toggle_modal(close_clicks, download_clicks, open_click, is_open, xmin, xmax, xslider, ymin, ymax, yslider, fitselect):
     
-    print(f"Callback: toggle_modal - close_clicks:{close_clicks} - download_clicks:{download_clicks} - open_click{open_click}")
+    #print(f"Callback: toggle_modal - close_clicks:{close_clicks} - download_clicks:{download_clicks} - open_click{open_click}")
     if download_clicks or open_click:
 
         # On a feedback open request or download click, record the time, slider settings, and fit selection
@@ -768,7 +796,7 @@ def toggle_modal(close_clicks, download_clicks, open_click, is_open, xmin, xmax,
 )
 def update_comments(n_clicks, string, current_comment):
 
-    print(f"Callback: update_comments - n_clicks:{n_clicks} - string:{string} - current_comment{current_comment}")
+    #print(f"Callback: update_comments - n_clicks:{n_clicks} - string:{string} - current_comment{current_comment}")
     if string:
 
         return string
@@ -794,14 +822,21 @@ def update_record(session_start, upload_name, download_time, last_comment, uploa
     print(f"Callback: update_record - session_start:{session_start} - upload_name:{upload_name} - download_time{download_time}")
 
     if session_start is not None:
-        events_df = pd.read_csv("Resources/events.csv")
-        event_list = events_df["Events"].to_list()
-        event_dictionary = "{" + f"'session_start':{session_start}, 'upload_name':{upload_name}, 'upload_length':{upload_length}, 'upload_width':{upload_width}, 'download_time':{download_time}, 'fit_download':{fit_download}, 'slider_download':{slider_download}, 'last_comment':{last_comment}, 'inlier_count':{inlier_count}, 'outlier_count':{outlier_count}" + "}"
-        event_list.append(event_dictionary)
+        event_dictionary = {
+            'session_start':session_start, 
+            'upload_name':upload_name, 
+            'upload_length':upload_length, 
+            'upload_width':upload_width, 
+            'download_time':download_time, 
+            'fit_download':fit_download, 
+            'slider_download':slider_download, 
+            'last_comment':last_comment, 
+            'inlier_count':inlier_count, 
+            'outlier_count':outlier_count
+            }
         print(event_dictionary)
-        events_df = pd.DataFrame(data = {"Events" : event_list})
-        events_df.to_csv("Resources/events.csv")
-
+        # Insert event dictionary into the database
+        collection.insert_one(event_dictionary)
 
 if __name__=='__main__':
     app.run_server(debug=True)
