@@ -372,14 +372,17 @@ app = dash.Dash(__name__,
 
 app.title = "Outlier Removal Tool"
 
-deployment = "mongodb://heroku_6j7pzr71:7d1c99omephlb501uffe1buhk8@ds241288.mlab.com:41288/heroku_6j7pzr71"
+deployment_mlab = "mongodb://heroku_6j7pzr71:7d1c99omephlb501uffe1buhk8@ds241288.mlab.com:41288/heroku_6j7pzr71"
+deployment_atlas = "mongodb+srv://thrum-rw:Skipshot1@thrumcluster-f2hkj.mongodb.net/test?retryWrites=true&w=majority"
 testing = "mongodb://localhost:27017/myDatabase"
-# server.config["MONGO_URI"] = deployment
-# mongo = PyMongo(server)
-client = pymongo.MongoClient(deployment)
-db = client.heroku_6j7pzr71
+
+client = pymongo.MongoClient(deployment_atlas)
+
+# Define the database name to use
+db = client.outliers
+
 # Define the collection to use
-events = db['events']
+collection = db['events']
 
 colors = {
     'background': "#111111",
@@ -841,7 +844,7 @@ def update_record(session_start, upload_name, download_time, last_comment, uploa
             }
         print(event_dictionary)
         # Insert event dictionary into the database
-        events.insert_one(event_dictionary)
+        collection.insert_one(event_dictionary)
 
 if __name__=='__main__':
     app.run_server(debug=True)
