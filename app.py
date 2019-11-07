@@ -12,7 +12,8 @@ import dash_table
 import pandas as pd
 import plotly.graph_objs as go
 import flask
-from flask_pymongo import PyMongo
+#from flask_pymongo import PyMongo
+import pymongo
 from scipy import optimize
 import numpy as np
 
@@ -373,16 +374,20 @@ app.title = "Outlier Removal Tool"
 
 deployment = "mongodb://heroku_6j7pzr71:7d1c99omephlb501uffe1buhk8@ds241288.mlab.com:41288/heroku_6j7pzr71"
 testing = "mongodb://localhost:27017/myDatabase"
-server.config["MONGO_URI"] = deployment
-mongo = PyMongo(server)
+# server.config["MONGO_URI"] = deployment
+# mongo = PyMongo(server)
+client = pymongo.MongoClient(deployment)
+db = client.heroku_6j7pzr71
+# Define the collection to use
+events = db['events']
 
 colors = {
     'background': "#111111",
     'text': '#7FDBFF'
 }
 
-# Define the collection to use
-collection = mongo.db.events
+# # Define the collection to use
+# collection = mongo.db.events
 
 # -----------/ App Layout /--------------
 # ---------------------------------------
@@ -836,7 +841,7 @@ def update_record(session_start, upload_name, download_time, last_comment, uploa
             }
         print(event_dictionary)
         # Insert event dictionary into the database
-        collection.insert_one(event_dictionary)
+        events.insert_one(event_dictionary)
 
 if __name__=='__main__':
     app.run_server(debug=True)
