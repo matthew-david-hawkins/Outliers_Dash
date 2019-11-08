@@ -12,10 +12,10 @@ import dash_table
 import pandas as pd
 import plotly.graph_objs as go
 import flask
-#from flask_pymongo import PyMongo
 import pymongo
 from scipy import optimize
 import numpy as np
+import time
 
 # The number of points to evauate on in the best fit function
 fit_resolution = 50
@@ -330,10 +330,9 @@ def parse_contents(contents, filename, date):
     
     return df
 
-def parse_contents_table(contents, filename, date, df):
+def parse_contents_table(filename, df):
     return html.Div([
         html.H5(filename),
-        html.H6(datetime.datetime.fromtimestamp(date)),
 
         dash_table.DataTable(
             data=df.to_dict('records'),
@@ -370,13 +369,12 @@ server = flask.Flask(__name__)
 app = dash.Dash(__name__, 
                 server=server)
 
-app.title = "Outlier Removal Tool"
+app.title = "Selective Curve Fit"
 
-deployment_mlab = "mongodb://heroku_6j7pzr71:7d1c99omephlb501uffe1buhk8@ds241288.mlab.com:41288/heroku_6j7pzr71"
 deployment_atlas = "mongodb+srv://thrum-rw:Skipshot1@thrumcluster-f2hkj.mongodb.net/test?retryWrites=true&w=majority"
 testing = "mongodb://localhost:27017/myDatabase"
 
-client = pymongo.MongoClient(deployment_atlas)
+client = pymongo.MongoClient(deployment)
 
 # Define the database name to use
 db = client.outliers
@@ -422,13 +420,49 @@ app.layout = html.Div(children=[
                 size="lg"
             ),
         ]
-    ), 
+    ),
+
+    html.Div(
+        [
+            dbc.Modal(
+                [
+                    dbc.ModalHeader("Download the Desktop Version"),
+                    dbc.ModalBody(
+                        html.Div([
+                            
+                            html.P("Please enter the email address where you would like to recieve your download link"),
+                            dcc.Input(
+                                placeholder='johnjane@mit.edu...',
+                                value='',
+                                style={'width': '100%'},
+                                id ="email-address"
+                            ),
+                            html.Br(),
+                            html.Br(),
+                            html.P("What features would you most like to use?"),
+                            dcc.Textarea(
+                                placeholder='type here...',
+                                value='',
+                                style={'width': '100%'},
+                                id ="feature-request"
+                            )
+                            ]),       
+                    ),
+                    dbc.ModalFooter(
+                        dbc.Button("Submit", id="desktop-modal-close", className="ml-auto")
+                    ),
+                ],
+                id="desktop-modal",
+                size="lg"
+            ),
+        ]
+    ),  
 
    html.Div([
     # ------------/ Row 1 /--------------   
     html.Div([
         html.H1(
-                children='Outlier Removal Tool',
+                children='Selective Curve Fitting Tool',
             )
     ], className='row justify-content-center'),
 
@@ -514,7 +548,7 @@ app.layout = html.Div(children=[
                 html.Div([
                     dcc.RangeSlider(
                             id = "y-slider",
-                            updatemode='drag',
+                            updatemode='mouseup',
                             value = [0,1],
                             vertical = True
                             )], style = {"height": "335px"})
@@ -530,7 +564,7 @@ app.layout = html.Div(children=[
             html.Div([
                 dcc.RangeSlider(
                 id='x-slider',
-                updatemode='drag',
+                updatemode='mouseup',
                 value=[0,1]
                 ),
             ], style = {"width": "73%", "display":"inline-block","position":"relative"}),
@@ -544,12 +578,14 @@ app.layout = html.Div(children=[
 
     html.Div(id='fit-equation', className='row justify-content-center'),
 
-    # ------------/ Row 6 /--------------
-    html.P(children=[html.Br(),html.Br()]),
-    html.Div(id='output-data-upload'),
+    html.P(children=[html.Br()]),
 
     # ------------/ Feedback Button /--------------
-    dbc.Button("Request A New Feature / Make a Complaint", id="open"),
+    dbc.Button("Download Desktop Version / Request A New Feature", id="desktop-request"),
+
+    # ------------/ Row 6 /--------------
+    html.P(children=[html.Br()]),
+    html.Div(id='output-data-upload'),
 
     # Hidden div inside the app that stores the data uploaded by the user
     html.Div(id='uploaded-json', style={'display': 'none'}),
@@ -590,6 +626,12 @@ app.layout = html.Div(children=[
     # Hidden div that stores the last comment made by the user
     html.Div(id='last-comment', style={'display': 'none'}),
 
+    # Hidden div that stores the last comment made by the user
+    html.Div(id='email-address-value', style={'display': 'none'}),
+
+    # Hidden div that stores the last comment made by the user
+    html.Div(id='feature-request-value', style={'display': 'none'}),
+
     # Hidden div for callback placeholder
     html.Div(id='placeholder', style={'display': 'none'}),
 
@@ -607,8 +649,6 @@ app.layout = html.Div(children=[
               [Input('placeholder2', 'children')]
               )
 def start_record(placeholder):
-
-    #print(f"Callback: start_record")
 
     #set session start record as the current time
     session_start = datetime.datetime.now()
@@ -634,11 +674,8 @@ def start_record(placeholder):
                 Output('upload-name', 'children')],
               [Input('upload-data', 'contents')],
               [State('upload-data', 'filename'),
-               State('upload-data', 'last_modified'),
-               State('upload-name', 'children')])
-def update_output(contents, filename, last_modified, upload_name):
-
-    #print(f"Callback: update_ouput - contents:{contents}")
+               State('upload-data', 'last_modified')])
+def update_output(contents, filename, last_modified):
     
     # if there are contents in the upload
     if contents is not None:
@@ -656,7 +693,7 @@ def update_output(contents, filename, last_modified, upload_name):
         upload_width = len(upload_df.columns)
 
         # Use dataframe to create table
-        children = [parse_contents_table(contents, filename, last_modified, upload_df)]
+        children = [parse_contents_table(filename, upload_df)]
 
         x_data = upload_df.iloc[:, 0]
         y_data = upload_df.iloc[:, 1]
@@ -684,7 +721,9 @@ def update_output(contents, filename, last_modified, upload_name):
     # On intial page load, or failure, use example data
     else:
         upload_df = pd.read_csv('Resources/design_data.csv')
-        children =[]
+
+        # Use dataframe to create table
+        children = [parse_contents_table("Example_data.csv", upload_df)]
     
         x_data = upload_df.iloc[:, 0]
         y_data = upload_df.iloc[:, 1]
@@ -692,25 +731,25 @@ def update_output(contents, filename, last_modified, upload_name):
         (x_min, x_max, x_marks, x_value, x_step) = update_slider(x_data, 'x')
         (y_min, y_max, y_marks, y_value, y_step) = update_slider(y_data, 'y')
 
+        x_initial = [x_value[0]+ 60*x_step, x_value[1] - 30*x_step]
+        y_initial = [y_value[0]+ 30*y_step, y_value[1] - 30*y_step]
+
         return (children, 
         upload_df.to_json(date_format='iso', orient='split'),
         x_min, 
         x_max, 
         x_marks, 
-        x_value, 
+        x_initial, 
         x_step,
         y_min, 
         y_max, 
         y_marks, 
-        y_value, 
+        y_initial, 
         y_step,
         dash.no_update,
         dash.no_update,
         dash.no_update
         )
-
-
-            
 
 #-------/ Fit Selected, Slider Parameters Changed / Uploaded Data Changed / -----------------
 @app.callback([Output('outlier-plot', 'figure'),
@@ -729,7 +768,6 @@ def update_output(contents, filename, last_modified, upload_name):
               )
 def update_graph(selection, jsonified_data, x_value_list, y_value_list):
     
-    #print(f"Callback: update_graph - selection:{selection} - jsonified_data: - x_value_list:{x_value_list} - y_value_list:{y_value_list}")
     if jsonified_data is not None:
         user_df = pd.read_json(jsonified_data, orient='split')
     else:
@@ -769,7 +807,7 @@ def update_graph(selection, jsonified_data, x_value_list, y_value_list):
     Output("slider-download", "children"),
     Output("fit-download", "children")
     ],
-    [Input("close", "n_clicks"), Input("download-button", "n_clicks"), Input("open", "n_clicks")],
+    [Input("close", "n_clicks"), Input("download-button", "n_clicks")],
     [State("modal", "is_open"), 
     State('x-slider', 'min'), 
     State('x-slider', 'max'), 
@@ -779,10 +817,9 @@ def update_graph(selection, jsonified_data, x_value_list, y_value_list):
     State('y-slider', 'value'),
     State('fit-dropdown', 'value')],
 )
-def toggle_modal(close_clicks, download_clicks, open_click, is_open, xmin, xmax, xslider, ymin, ymax, yslider, fitselect):
+def toggle_modal(close_clicks, download_clicks, is_open, xmin, xmax, xslider, ymin, ymax, yslider, fitselect):
     
-    #print(f"Callback: toggle_modal - close_clicks:{close_clicks} - download_clicks:{download_clicks} - open_click{open_click}")
-    if download_clicks or open_click:
+    if download_clicks:
 
         # On a feedback open request or download click, record the time, slider settings, and fit selection
         end_interation_time = datetime.datetime.now()
@@ -804,12 +841,46 @@ def toggle_modal(close_clicks, download_clicks, open_click, is_open, xmin, xmax,
 )
 def update_comments(n_clicks, string, current_comment):
 
-    #print(f"Callback: update_comments - n_clicks:{n_clicks} - string:{string} - current_comment{current_comment}")
     if string:
 
         return string
     
     return dash.no_update
+
+#-------/ Download Desktop button clicked / -----------------
+@app.callback(Output("desktop-modal", "is_open"), 
+    [Input("desktop-modal-close", "n_clicks"), Input("desktop-request", "n_clicks")],
+    [State("desktop-modal", "is_open")],
+)
+def toggle_desktop_modal(close_clicks, desktop_request_clicks, is_open):
+    
+    if desktop_request_clicks:
+
+        # On a desktop download request open the modal
+        if close_clicks:
+
+            return not is_open
+
+        return not is_open
+
+    return False
+
+#-------/ Add email address / feature to list / -----------------
+@app.callback(
+    [Output("feature-request-value", "children"),
+    Output("email-address-value", "children"),
+    Output("email-address", "value"),
+    Output("feature-request", "value")],
+    [Input("desktop-modal", "is_open")],
+    [State("email-address", "value"), State("feature-request", "value")]
+)
+def update_comments(n_clicks, email_string, text_string):
+
+    if text_string or email_string:
+
+        return text_string, email_string, None, None,
+
+    return dash.no_update, dash.no_update,dash.no_update,dash.no_update,
 
 #-------/ Write to Session Info / -----------------
 @app.callback(
@@ -817,21 +888,32 @@ def update_comments(n_clicks, string, current_comment):
     [Input("session-start", "children"),
     Input("upload-name", "children"),
     Input("download-time", "children"),
-    Input("last-comment", "children")],
+    Input("last-comment", "children"),
+    Input("email-address-value", "children")],
     [State("upload-length", "children"),
     State("upload-width", "children"),
     State("fit-download", "children"),
     State("slider-download", "children"),
     State("inlier-count", "children"),
-    State("outlier-count", "children"),]
+    State("outlier-count", "children"),
+    State("feature-request-value", "children")]
 )
-def update_record(session_start, upload_name, download_time, last_comment, upload_length, upload_width, fit_download, slider_download,  inlier_count, outlier_count):
-
-    print(f"Callback: update_record - session_start:{session_start} - upload_name:{upload_name} - download_time{download_time}")
+def update_record(session_start, 
+    upload_name, 
+    download_time, 
+    last_comment,
+    email_address, 
+    upload_length,
+    upload_width, 
+    fit_download, 
+    slider_download,  
+    inlier_count, 
+    outlier_count,
+    feature_request,):
 
     if session_start is not None:
         event_dictionary = {
-            'session_start':session_start, 
+            'session_start':session_start,
             'upload_name':upload_name, 
             'upload_length':upload_length, 
             'upload_width':upload_width, 
@@ -840,11 +922,13 @@ def update_record(session_start, upload_name, download_time, last_comment, uploa
             'slider_download':slider_download, 
             'last_comment':last_comment, 
             'inlier_count':inlier_count, 
-            'outlier_count':outlier_count
+            'outlier_count':outlier_count,
+            'email_address':email_address,
+            'feature_request':feature_request
             }
-        print(event_dictionary)
         # Insert event dictionary into the database
         collection.insert_one(event_dictionary)
+        return dash.no_update
 
 if __name__=='__main__':
     app.run_server(debug=True)
