@@ -371,7 +371,7 @@ app = dash.Dash(__name__,
 
 app.title = "Selective Curve Fit"
 
-deployment_atlas = "mongodb+srv://thrum-rw:Skipshot1@thrumcluster-f2hkj.mongodb.net/test?retryWrites=true&w=majority"
+deployment = "mongodb+srv://thrum-rw:Skipshot1@thrumcluster-f2hkj.mongodb.net/test?retryWrites=true&w=majority"
 testing = "mongodb://localhost:27017/myDatabase"
 
 client = pymongo.MongoClient(deployment)
