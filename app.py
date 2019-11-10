@@ -483,7 +483,7 @@ app.layout = html.Div(children=[
                 id='upload-data',
                 children=html.Div([
                     'Try It! 1.  Drag and Drop or ',
-                    html.A(['Click to Select a File'], style = {"color": "#007BFF"})
+                    html.A(['Click to Open a File'], style = {"color": "#007BFF"})
                 ]),
                 style={
                     'width': '100%',
