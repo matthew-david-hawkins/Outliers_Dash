@@ -483,7 +483,7 @@ app.layout = html.Div(children=[
                 id='upload-data',
                 children=html.Div([
                     'Try It! 1.  Drag and Drop or ',
-                    html.A(['Select a File'], style = {"color": "#007BFF"})
+                    html.A(['Click to Select a File'], style = {"color": "#007BFF"})
                 ]),
                 style={
                     'width': '100%',
@@ -504,7 +504,7 @@ app.layout = html.Div(children=[
             ], style = {"width": "33%", "display":"inline-block","position":"relative",'textAlign': 'center'}),
         html.Div([
             #html.A('3.  Download Your Clean Data', href='Resources/design_data.csv', download="my_data.csv", id='download-button')
-            html.A('3.  Download Your Clean Data', href='#', id='download-button')
+            html.A('3.  Save Your Clean Data', href='#', id='download-button')
         ], style = {"width": "34%", "display":"inline-block","position":"relative",'textAlign': 'left'}),
     ]),
 
