@@ -1,0 +1,49 @@
+h1 {
+  color: #0D0D0D !important;
+  letter-spacing: 0.0952381em !important;
+  font-family: Lato !important;
+  font-weight: 700 !important;
+  font-style: normal !important;
+  font-size: 21px !important;
+  text-transform: uppercase !important;
+  text-decoration: none !important;
+  line-height: 1.2em !important;
+  text-align: center !important;
+}
+
+h2 {
+  font-family: Lato;
+  font-style: normal;
+  font-weight: 300;
+  font-size: 34px;
+  letter-spacing: .1em;
+  text-transform: none;
+  text-decoration: none;
+  line-height: 1.25em;
+  color: #0a0a0a;
+  margin: 2em 0 .75em;
+}
+
+h4 {
+  font-family: Lato;
+  font-style: normal;
+  font-size: 16px;
+  letter-spacing: .075em;
+  text-transform: none;
+  line-height: 1.8em;
+  color: rgba(5,5,5,.99);
+  text-decoration: none;
+  font-weight: bold;
+}
+
+body{
+  font-family: Lato;
+  font-style: normal;
+  font-size: 16px;
+  letter-spacing: .075em;
+  text-transform: none;
+  line-height: 1.8em;
+  color: rgba(5,5,5,.99);
+  text-decoration: none;
+  font-weight: bold;
+}

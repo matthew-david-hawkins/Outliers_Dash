@@ -342,7 +342,7 @@ def parse_contents_table(filename, df):
         html.Hr(),  # horizontal line
     ])
 
-about_text1 = 'Use this interactive sandbox to identify outliers in your data, remove them, and improve your insights.'
+about_text1 = 'Scatter Plot with Selective Curve Fitting'
 about_text3 = 'Try it!'
 
 
@@ -350,6 +350,7 @@ about_text3 = 'Try it!'
 external_scripts = [
     'gtag.js',
     'ga.js',
+    'aviator.css',
     {
         'src': 'https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js',
         'integrity': 'sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1',
@@ -376,7 +377,7 @@ server = flask.Flask(__name__)
 app = dash.Dash(__name__, 
                 server=server)
 
-app.title = "Selective Curve Fit"
+app.title = "Web Scatter Plot"
 
 deployment = "mongodb+srv://thrum-rw:Skipshot1@thrumcluster-f2hkj.mongodb.net/test?retryWrites=true&w=majority"
 testing = "mongodb://localhost:27017/myDatabase"
@@ -466,22 +467,33 @@ app.layout = html.Div(children=[
     ),  
 
    html.Div([
+    
+    
+
     # ------------/ Row 1 /--------------   
+    html.P(children=[html.Br()]),
+
     html.Div([
-        html.H1(
-                children='Selective Curve Fitting Tool',
-            )
+        html.H1(html.A('Thrum Engineering', href='https://www.thrum.engineering/', style={"color": "#0D0D0D", "text-decoration" : "none"}))
     ], className='row justify-content-center'),
+
+    html.P(children=[html.Br()]),
 
     # ------------/ Row 2 /--------------
     html.Div([
         html.Div(
-                children=[html.H4([html.Br(), about_text1])],
+                children=[html.H2([html.Br(), about_text1])],
                 className="lg-col-12",
                 style={
                     'textAlign': 'left'
                 }
             ),
+    ], className='row'),
+    
+    html.Div([
+        html.P(
+                children='Apply a variety of curve fits to the data inside the red lines. Use the sliders to change your data selection.', style={'font-weight': "bold"}
+            )
     ], className='row'),
 
     html.Div([
@@ -490,7 +502,7 @@ app.layout = html.Div(children=[
                 id='upload-data',
                 children=html.Div([
                     'Try It! 1.  Drag and Drop or ',
-                    html.A(['Click to Open a File'], style = {"color": "#007BFF"})
+                    html.A(['Open a File'], style = {"color": "#007BFF"})
                 ]),
                 style={
                     'width': '100%',
@@ -517,12 +529,6 @@ app.layout = html.Div(children=[
 
     # ------------/ Row 3 /--------------
     html.P(children=[html.Br()]),
-
-    html.Div([
-        html.H4(
-                children='Curve Fit Applied Only To Data Inside The Red Lines',
-            )
-    ], className='row justify-content-center'),
 
     html.Div([
         html.Div([], style = {"width": "33%", "display":"inline-block","position":"relative"}),
