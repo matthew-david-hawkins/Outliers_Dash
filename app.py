@@ -371,9 +371,11 @@ server = flask.Flask(__name__)
 # server.secret_key = os.environ.get('secret_key', str(randint(0, 1000000)))
 app = dash.Dash(__name__, 
                 server=server,
-                meta_tags=[{'name':"google-site-verification",'content':'-DG72gAezA5fpWAtf5XPAMWtsWXhoF6CXS1ErTi3Vlo'}])
+                meta_tags=[{'name':"google-site-verification",'content':'-DG72gAezA5fpWAtf5XPAMWtsWXhoF6CXS1ErTi3Vlo'}, 
+                    {'name':"description",'content':'Plot data and find the best fit curve online with this interactive scatter plot. Apply a variety of curve fits only to the data that you select.'}
+                    ])
 
-app.title = "Web Scatter Plot"
+app.title = "Web Scatter Plot - Thrum Engineering"
 
 deployment = "mongodb+srv://thrum-rw:Skipshot1@thrumcluster-f2hkj.mongodb.net/test?retryWrites=true&w=majority"
 testing = "mongodb://localhost:27017/myDatabase"
