@@ -17,9 +17,4 @@ setTimeout(function(){
 
 }, 3000);
 
-var metaTag=document.createElement('meta');
-metaTag.name = "google-site-verification"
-metaTag.content = "-DG72gAezA5fpWAtf5XPAMWtsWXhoF6CXS1ErTi3Vlo"
-document.getElementsByTagName('head')[0].appendChild(metaTag);
-
 

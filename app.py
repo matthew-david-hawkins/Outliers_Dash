@@ -370,7 +370,8 @@ external_scripts = [
 server = flask.Flask(__name__)
 # server.secret_key = os.environ.get('secret_key', str(randint(0, 1000000)))
 app = dash.Dash(__name__, 
-                server=server)
+                server=server,
+                meta_tags=[{'name':"google-site-verification",'content':'-DG72gAezA5fpWAtf5XPAMWtsWXhoF6CXS1ErTi3Vlo'}])
 
 app.title = "Web Scatter Plot"
 
